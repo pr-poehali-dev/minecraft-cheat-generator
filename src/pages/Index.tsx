@@ -3,8 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Slider } from '@/components/ui/slider';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
+import JSZip from 'jszip';
 
 interface Message {
   id: string;
@@ -15,6 +18,11 @@ interface Message {
 interface CheatFeature {
   name: string;
   enabled: boolean;
+  settings: {
+    range?: number;
+    speed?: number;
+    delay?: number;
+  };
 }
 
 const Index = () => {
@@ -28,6 +36,7 @@ const Index = () => {
   const [input, setInput] = useState('');
   const [currentCheat, setCurrentCheat] = useState<CheatFeature[]>([]);
   const [cheatName, setCheatName] = useState('');
+  const [selectedFeature, setSelectedFeature] = useState<CheatFeature | null>(null);
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -43,7 +52,12 @@ const Index = () => {
     setTimeout(() => {
       const features = extractFeatures(input);
       if (features.length > 0) {
-        setCurrentCheat(features);
+        setCurrentCheat(prev => {
+          const newFeatures = features.filter(
+            f => !prev.find(p => p.name === f.name)
+          );
+          return [...prev, ...newFeatures];
+        });
         if (!cheatName) {
           setCheatName(`CustomCheat_${Date.now()}`);
         }
@@ -62,29 +76,33 @@ const Index = () => {
   };
 
   const extractFeatures = (text: string): CheatFeature[] => {
-    const keywords: Record<string, string> = {
-      'killaura': 'KillAura',
-      'fly': 'Fly Hack',
-      'xray': 'X-Ray',
-      'speed': 'Speed Hack',
-      'bhop': 'Bunny Hop',
-      'anti': 'Anti-Knockback',
-      'aimbot': 'AimBot',
-      'esp': 'ESP (Wallhack)',
-      'scaffold': 'Scaffold',
-      'velocity': 'Velocity',
-      'fullbright': 'FullBright',
-      'nuker': 'Nuker',
-      'автоклик': 'Auto Clicker',
-      'меню': 'GUI Menu'
+    const keywords: Record<string, { name: string; settings: any }> = {
+      'killaura': { name: 'KillAura', settings: { range: 4, speed: 10 } },
+      'fly': { name: 'Fly Hack', settings: { speed: 5 } },
+      'xray': { name: 'X-Ray', settings: {} },
+      'speed': { name: 'Speed Hack', settings: { speed: 8 } },
+      'bhop': { name: 'Bunny Hop', settings: { speed: 6 } },
+      'anti': { name: 'Anti-Knockback', settings: {} },
+      'aimbot': { name: 'AimBot', settings: { range: 50 } },
+      'esp': { name: 'ESP (Wallhack)', settings: { range: 100 } },
+      'scaffold': { name: 'Scaffold', settings: { delay: 50 } },
+      'velocity': { name: 'Velocity', settings: { speed: 3 } },
+      'fullbright': { name: 'FullBright', settings: {} },
+      'nuker': { name: 'Nuker', settings: { range: 5, speed: 5 } },
+      'автоклик': { name: 'Auto Clicker', settings: { delay: 100 } },
+      'меню': { name: 'GUI Menu', settings: {} }
     };
 
     const features: CheatFeature[] = [];
     const lowerText = text.toLowerCase();
 
-    Object.entries(keywords).forEach(([key, name]) => {
+    Object.entries(keywords).forEach(([key, data]) => {
       if (lowerText.includes(key)) {
-        features.push({ name, enabled: true });
+        features.push({ 
+          name: data.name, 
+          enabled: true,
+          settings: data.settings
+        });
       }
     });
 
@@ -97,56 +115,172 @@ const Index = () => {
     }
 
     const featureList = features.map(f => f.name).join(', ');
-    return `✅ Создаю чит с функциями: ${featureList}\n\nДобавлены модули:\n${features.map(f => `• ${f.name} - активирован`).join('\n')}\n\nГотово! Теперь можешь скачать ZIP-архив с исходниками или добавить ещё функций.`;
+    return `✅ Создаю чит с функциями: ${featureList}\n\nДобавлены модули:\n${features.map(f => `• ${f.name} - активирован`).join('\n')}\n\nТеперь можешь настроить каждый модуль (кликни на него) и скачать полный ZIP-архив!`;
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (currentCheat.length === 0) {
       toast.error('Сначала создай чит в чате!');
       return;
     }
 
-    const cheatCode = generateCheatCode();
-    const blob = new Blob([cheatCode], { type: 'text/plain' });
+    const zip = new JSZip();
+
+    const mainCode = generateMainClass();
+    zip.file(`src/main/java/com/cheat/${cheatName}.java`, mainCode);
+
+    currentCheat.forEach(feature => {
+      const moduleCode = generateModuleCode(feature);
+      const moduleName = feature.name.replace(/[^a-zA-Z]/g, '');
+      zip.file(`src/main/java/com/cheat/modules/${moduleName}.java`, moduleCode);
+    });
+
+    const buildGradle = generateBuildGradle();
+    zip.file('build.gradle', buildGradle);
+
+    const readme = generateReadme();
+    zip.file('README.md', readme);
+
+    const forgeGradle = `buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:5.1.+'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'java'
+
+version = '1.0'
+group = 'com.cheat'
+
+minecraft {
+    mappings channel: 'official', version: '1.19.2'
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.19.2-43.2.0'
+}`;
+
+    zip.file('build.gradle', forgeGradle);
+
+    const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${cheatName}.txt`;
+    a.download = `${cheatName}.zip`;
     a.click();
     URL.revokeObjectURL(url);
 
-    toast.success('Чит скачан! Теперь скомпилируй его локально');
+    toast.success('ZIP-архив скачан! Распакуй и скомпилируй через Gradle');
   };
 
-  const generateCheatCode = (): string => {
-    return `// ${cheatName} - Minecraft Java Cheat
-// Generated by Minecraft Cheat Generator
+  const generateMainClass = (): string => {
+    return `package com.cheat;
 
-package com.cheat.${cheatName.toLowerCase()};
-
-import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
-@Mod(modid = "${cheatName}", version = "1.0")
+@Mod("${cheatName.toLowerCase()}")
 public class ${cheatName} {
     
-    // Features
-${currentCheat.map(f => `    // ${f.name}: ${f.enabled ? 'ENABLED' : 'DISABLED'}`).join('\n')}
-    
-    public static void init() {
-${currentCheat.map(f => `        register${f.name.replace(/[^a-zA-Z]/g, '')}();`).join('\n')}
+    public ${cheatName}() {
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(this::clientSetup);
     }
     
-${currentCheat.map(f => `    
-    private static void register${f.name.replace(/[^a-zA-Z]/g, '')}() {
-        // TODO: Implement ${f.name} module
-        System.out.println("${f.name} module loaded");
-    }`).join('\n')}
+    private void clientSetup(FMLClientSetupEvent event) {
+        System.out.println("${cheatName} initialized!");
+        initModules();
+    }
+    
+    private void initModules() {
+${currentCheat.map(f => `        ${f.name.replace(/[^a-zA-Z]/g, '')}.init();`).join('\n')}
+    }
+}`;
+  };
+
+  const generateModuleCode = (feature: CheatFeature): string => {
+    const moduleName = feature.name.replace(/[^a-zA-Z]/g, '');
+    const settings = Object.entries(feature.settings)
+      .map(([key, value]) => `    private static ${typeof value === 'number' ? 'double' : 'String'} ${key} = ${value};`)
+      .join('\n');
+
+    return `package com.cheat.modules;
+
+public class ${moduleName} {
+    
+    private static boolean enabled = ${feature.enabled};
+${settings}
+    
+    public static void init() {
+        System.out.println("${feature.name} module loaded");
+        System.out.println("Settings: ${Object.entries(feature.settings).map(([k, v]) => `${k}=${v}`).join(', ')}");
+    }
+    
+    public static void toggle() {
+        enabled = !enabled;
+    }
+    
+    public static boolean isEnabled() {
+        return enabled;
+    }
+}`;
+  };
+
+  const generateBuildGradle = (): string => {
+    return `plugins {
+    id 'java'
 }
 
-// Compile with: javac -cp minecraft-forge.jar ${cheatName}.java
-// Build: jar cvf ${cheatName}.jar com/
-`;
+group = 'com.cheat'
+version = '1.0'
+
+repositories {
+    mavenCentral()
+    maven { url 'https://maven.minecraftforge.net' }
+}
+
+dependencies {
+    // Minecraft Forge dependencies here
+}`;
+  };
+
+  const generateReadme = (): string => {
+    return `# ${cheatName}
+
+Minecraft Java Cheat Client
+
+## Features
+${currentCheat.map(f => `- **${f.name}** ${Object.entries(f.settings).length > 0 ? `(${Object.entries(f.settings).map(([k, v]) => `${k}: ${v}`).join(', ')})` : ''}`).join('\n')}
+
+## Build Instructions
+1. Install Java JDK 17+
+2. Install Gradle
+3. Run: \`gradle build\`
+4. Output: \`build/libs/${cheatName}-1.0.jar\`
+
+## Installation
+1. Install Minecraft Forge 1.19.2
+2. Copy JAR to \`.minecraft/mods\` folder
+3. Launch Minecraft
+
+## Usage
+Press Right Shift to open mod menu
+
+---
+Generated by Minecraft Cheat Generator`;
+  };
+
+  const updateFeatureSetting = (featureName: string, key: string, value: number) => {
+    setCurrentCheat(prev => prev.map(f => 
+      f.name === featureName 
+        ? { ...f, settings: { ...f.settings, [key]: value } }
+        : f
+    ));
   };
 
   return (
@@ -243,13 +377,40 @@ ${currentCheat.map(f => `
                     ) : (
                       <div className="space-y-2">
                         {currentCheat.map((feature, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center gap-2 p-2 bg-minecraft-green/20 border-l-4 border-minecraft-green"
-                          >
-                            <div className="w-3 h-3 bg-minecraft-gold pixelated"></div>
-                            <span className="text-sm font-medium">{feature.name}</span>
-                          </div>
+                          <Dialog key={idx}>
+                            <DialogTrigger asChild>
+                              <div
+                                className="flex items-center gap-2 p-2 bg-minecraft-green/20 border-l-4 border-minecraft-green cursor-pointer hover:bg-minecraft-green/30 transition"
+                                onClick={() => setSelectedFeature(feature)}
+                              >
+                                <div className="w-3 h-3 bg-minecraft-gold pixelated"></div>
+                                <span className="text-sm font-medium flex-1">{feature.name}</span>
+                                <Icon name="Settings" size={14} className="text-minecraft-stone" />
+                              </div>
+                            </DialogTrigger>
+                            <DialogContent className="minecraft-border">
+                              <DialogHeader>
+                                <DialogTitle className="pixel-font text-sm">{feature.name}</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                {Object.entries(feature.settings).map(([key, value]) => (
+                                  <div key={key} className="space-y-2">
+                                    <label className="text-xs font-bold uppercase text-minecraft-stone">
+                                      {key}: {value}
+                                    </label>
+                                    <Slider
+                                      value={[value as number]}
+                                      onValueChange={(val) => updateFeatureSetting(feature.name, key, val[0])}
+                                      min={key === 'delay' ? 10 : 1}
+                                      max={key === 'delay' ? 500 : key === 'range' ? 100 : 20}
+                                      step={1}
+                                      className="w-full"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
                         ))}
                       </div>
                     )}
@@ -264,8 +425,8 @@ ${currentCheat.map(f => `
               disabled={currentCheat.length === 0}
             >
               <div className="flex items-center justify-center gap-2">
-                <Icon name="Download" size={16} />
-                <span>DOWNLOAD</span>
+                <Icon name="Package" size={16} />
+                <span>DOWNLOAD ZIP</span>
               </div>
             </button>
 
