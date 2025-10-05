@@ -691,30 +691,26 @@ ${currentCheat.map(f => `│       ├── ${f.name.replace(/[^a-zA-Z]/g, '')}
               </ScrollArea>
 
               <div className="p-4 border-t-4 border-minecraft-stone bg-gray-100">
-                <div className="flex gap-2">
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSend();
+                  }}
+                  className="flex gap-2"
+                >
                   <Input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
                     placeholder="Опиши функции для чита..."
                     className="flex-1 border-2 border-minecraft-stone"
                   />
                   <Button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleSend();
-                    }}
-                    type="button"
+                    type="submit"
                     className="minecraft-btn"
                   >
                     <Icon name="Send" size={16} />
                   </Button>
-                </div>
+                </form>
               </div>
             </Card>
           </div>
