@@ -18,7 +18,18 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				'pixel': ['Press Start 2P', 'cursive'],
+				'sans': ['Roboto', 'sans-serif'],
+			},
 			colors: {
+				minecraft: {
+					green: '#62C74F',
+					brown: '#8B4513',
+					stone: '#4A4A4A',
+					gold: '#FFD700',
+					white: '#FFFFFF',
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
@@ -83,6 +94,16 @@ export default {
 					},
 					to: {
 						height: '0'
+					}
+				},
+				'slide-in': {
+					from: {
+						opacity: '0',
+						transform: 'translateY(10px)'
+					},
+					to: {
+						opacity: '1',
+						transform: 'translateY(0)'
 					}
 				}
 			},
