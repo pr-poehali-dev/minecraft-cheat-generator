@@ -1,17 +1,16 @@
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Icon from '@/components/ui/icon';
 import { CheatFeature } from '@/types/cheat';
+import { SettingControl } from './SettingControl';
 
 interface ConfigPanelProps {
   cheatName: string;
   setCheatName: (value: string) => void;
   currentCheat: CheatFeature[];
-  updateFeatureSetting: (featureName: string, key: string, value: number | boolean) => void;
+  updateFeatureSetting: (featureName: string, key: string, value: number | boolean | string) => void;
   setSelectedFeature: (feature: CheatFeature | null) => void;
 }
 
@@ -79,27 +78,12 @@ export const ConfigPanel = ({
                           </DialogHeader>
                           <div className="space-y-4 py-4">
                             {Object.entries(feature.settings).length > 0 ? (
-                              Object.entries(feature.settings).map(([key, value]) => (
-                                <div key={key} className="space-y-2">
-                                  <label className="text-xs font-bold uppercase text-minecraft-stone">
-                                    {key}: {typeof value === 'boolean' ? (value ? 'ON' : 'OFF') : value}
-                                  </label>
-                                  {typeof value === 'boolean' ? (
-                                    <Switch
-                                      checked={value}
-                                      onCheckedChange={(checked) => updateFeatureSetting(feature.name, key, checked)}
-                                    />
-                                  ) : (
-                                    <Slider
-                                      value={[value as number]}
-                                      onValueChange={(val) => updateFeatureSetting(feature.name, key, val[0])}
-                                      min={key.includes('CPS') ? 1 : key === 'delay' ? 10 : key.includes('range') ? 1 : key.includes('fov') ? 30 : 0}
-                                      max={key.includes('CPS') ? 20 : key === 'delay' ? 500 : key.includes('range') ? 256 : key.includes('fov') ? 180 : 10}
-                                      step={key.includes('speed') || key.includes('boost') ? 0.1 : key === 'delay' ? 10 : 1}
-                                      className="w-full"
-                                    />
-                                  )}
-                                </div>
+                              Object.entries(feature.settings).map(([key, setting]) => (
+                                <SettingControl
+                                  key={key}
+                                  setting={setting}
+                                  onChange={(value) => updateFeatureSetting(feature.name, key, value)}
+                                />
                               ))
                             ) : (
                               <p className="text-sm text-gray-500">Модуль без настроек</p>

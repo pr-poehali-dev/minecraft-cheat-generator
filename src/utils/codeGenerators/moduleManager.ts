@@ -49,7 +49,7 @@ ${moduleInits}
         protected boolean enabled = false;
         
         public enum Category {
-            COMBAT, MOVEMENT, PLAYER, RENDER, WORLD
+            COMBAT, MOVEMENT, PLAYER, RENDER, WORLD, MISC, EXPLOIT
         }
         
         public Module(String name, Category category, int keyBind) {

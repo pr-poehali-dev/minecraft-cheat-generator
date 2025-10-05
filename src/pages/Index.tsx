@@ -56,10 +56,16 @@ const Index = () => {
     setInput('');
   };
 
-  const updateFeatureSetting = (featureName: string, key: string, value: number | boolean) => {
+  const updateFeatureSetting = (featureName: string, key: string, value: number | boolean | string) => {
     setCurrentCheat(prev => prev.map(f => 
       f.name === featureName 
-        ? { ...f, settings: { ...f.settings, [key]: value } }
+        ? { 
+            ...f, 
+            settings: { 
+              ...f.settings, 
+              [key]: { ...f.settings[key], value } 
+            } 
+          }
         : f
     ));
   };
